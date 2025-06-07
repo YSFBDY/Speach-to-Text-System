@@ -13,7 +13,7 @@ class TokenAuthMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->bearerToken(); // Get token from Authorization header
-
+        Log::info('TokenAuthMiddleware triggered', ['token' => $token]);
         if (!$token) {
             Log::error('Token not found');
             abort(401);

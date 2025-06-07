@@ -8,20 +8,24 @@ use App\Models\Subscription;
 use App\Models\Plan;
 use App\Models\Transcription;
 use App\Models\Translation;
-use App\Models\Screen;
+use App\Models\Payment;
+
+use App\Http\Requests\Manager\descriptiverepostRequest;
+use App\Http\Requests\Manager\explantoryreportRequest;
+use App\Http\Requests\Manager\financialreportRequest;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class ManagerController extends Controller
 {
-    public function descriptiverepost(Request $request)
+    public function descriptiverepost(descriptiverepostRequest $request)
     {
-        $range = $request->input('range', 30);
+        $range = $request->input('range', 90);
         $plan = $request->input('plan', 'free');
 
-        $allowedRanges = [7, 15, 30];
-        $range = in_array($range, $allowedRanges) ? $range : 30;
+        $allowedRanges = [7, 15, 30, 60, 90];
+        $range = in_array($range, $allowedRanges) ? $range : 90;
 
         $startDate = Carbon::now()->subDays($range)->startOfDay();
         $endDate = Carbon::now()->endOfDay();
@@ -120,185 +124,139 @@ class ManagerController extends Controller
 
 
 
-    public function explantoryreport(Request $request) {
+    public function explantoryreport(explantoryreportRequest $request) {
 
-        $range = $request->input('range', 30);
-        $plan = $request->input('plan', 'free');
+        $range = $request->input('range', 90);
 
-        $allowedRanges = [7, 15, 30];
-        $range = in_array($range, $allowedRanges) ? $range : 30;
+        $allowedRanges = [7, 15, 30 , 60, 90];
+        $range = in_array($range, $allowedRanges) ? $range : 90;
 
         $startDate = Carbon::now()->subDays($range)->startOfDay();
         $endDate = Carbon::now()->endOfDay();
-
-        $totalUsers = User::where('role', 'user')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->count();
-
-         $AvgEng = 0.0;
-        if ($plan === 'free') {
-            $usersIds = User::where('role', 'user')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->whereNotIn('user_id', Subscription::pluck('user_id')
-                )->pluck('user_id');
-                
-            $totalUsers = count($usersIds);
-
-            if ($totalUsers > 0) {
-                $TranscriptionRemaining = User::whereIn('user_id', $usersIds)
-                    ->sum('trial_number_transcription');
-
-                $TranslationRemaining = User::whereIn('user_id', $usersIds)
-                    ->sum('trial_number_translation');
-
-                $totalTranscriptionUsed = (10 * $totalUsers) - $TranscriptionRemaining;
-                $totalTranslationUsed = (10 * $totalUsers) - $TranslationRemaining;
-
-                $AvgEng = floatval(($totalTranscriptionUsed + $totalTranslationUsed) / 2);
-
-            }else {
-                $AvgEng = 0.0;
-            }
-
-            
-        
-        }elseif ($plan === 'all') {
-                $freeusersIds = User::where('role', 'user')
-                    ->whereBetween('created_at', [$startDate, $endDate])
-                    ->pluck('user_id');
-                    
-                $freetotalUsers = count($freeusersIds);
-
-                $subscribedusersIds = User::where('role', 'user')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->whereIn('user_id', Subscription::pluck('user_id')
-                )->pluck('user_id');
-                
-                $subscribedtotalUsers = count($subscribedusersIds);
-
-            if ($totalUsers > 0) {
-                $TranscriptionRemainingfree = User::whereIn('user_id', $freeusersIds)
-                    ->sum('trial_number_transcription');
-
-                $TranslationRemainingfree = User::whereIn('user_id', $freeusersIds)
-                    ->sum('trial_number_translation');
-
-                $totalTranscriptionUsedfree = (10 * $freetotalUsers) - $TranscriptionRemainingfree;
-                $totalTranslationUsedfree = (10 * $freetotalUsers) - $TranslationRemainingfree;
-
-
-
-                $totalTranscriptionUsedsub = 0;
-                $totalTranslationUsedsub = 0;
-
-                $subscriptions = Subscription::whereIn('user_id', $subscribedusersIds)
-                    ->where('subscription_status', 'active')
-                    ->get();
-
-                foreach ($subscriptions as $subscription) {
-                    $planTranscriptionLimit = Plan::where('plan_id', $subscription->plan_id)->value('plan_transcription_limit');
-                    $planTranslationLimit = Plan::where('plan_id', $subscription->plan_id)->value('plan_translation_limit');
-
-                    $usedTranscription = $planTranscriptionLimit - $subscription->remain_transcription_limit;
-                    $usedTranslation = $planTranslationLimit - $subscription->remain_translation_limit;
-
-                    $totalTranscriptionUsedsub += $usedTranscription;
-                    $totalTranslationUsedsub += $usedTranslation;
-                }
-
-                $AvgEng = floatval(( ($totalTranscriptionUsedfree + $totalTranscriptionUsedsub) + ($totalTranslationUsedfree  + $totalTranslationUsedsub) ) / 2);
-
-            }else {
-                $AvgEng = 0.0;
-            }
-        }
-         elseif (is_numeric($plan)) {
-            Log::info("Plan is numeric: $plan");
-            if (!Plan::where('plan_id', $plan)->exists()) {
-                return response()->json(['error' => 'Invalid plan'], 400);
-            }
-            $totalTranscriptionplan = Plan::where('plan_id', $plan)->value('plan_transcription_limit');
-            $totalTranslationplan = Plan::where('plan_id', $plan)->value('plan_translation_limit');
-
-            $usersIds = User::where('role', 'user')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->whereIn('user_id', Subscription::where('plan_id', $plan)
-                    ->pluck('user_id')
-                )
-                ->pluck('user_id');
-                
-            $totalUsers = count($usersIds);
-
-            if ($totalUsers > 0) {
-                $TranscriptionRemaining = Subscription::whereIn('user_id', $usersIds)
-                    ->sum('remain_transcription_limit');
-
-                $TranslationRemaining = Subscription::whereIn('user_id', $usersIds)
-                    ->sum('remain_translation_limit');
-
-                $totalTranscriptionUsed = ($totalTranscriptionplan * $totalUsers) - $TranscriptionRemaining;
-                $totalTranslationUsed = ($totalTranslationplan * $totalUsers) - $TranslationRemaining;
-
-                $AvgEng = floatval(($totalTranscriptionUsed + $totalTranslationUsed) / 2);
-
-            }else {
-                $AvgEng = 0.0;
-            }
-            
-
-        } 
-
-
 
 
         $allPlans = Plan::all(['plan_id', 'plan_name'])->toArray();
         $allPlans[] = ['plan_id' => 'free', 'plan_name' => 'Free'];
 
-        $stats= [];
+        $stats = [];
         foreach ($allPlans as $plan) {
-          if( $plan['plan_id'] === 'free' && $plan === 'free') {
-            $usersIds = User::where('role', 'user')
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->whereNotIn('user_id', Subscription::pluck('user_id')
-                )->pluck('user_id');
-
-            $totalUsers = count($usersIds);
-
-            foreach ($usersIds as $userId) {
-                $transcriptionCount = Transcription::where('user_id', $userId)
+            if ($plan['plan_id'] === 'free') {
+                $usersIds = User::where('role', 'user')
                     ->whereBetween('created_at', [$startDate, $endDate])
-                    ->count();
-
-                $translationCount = Translation::where('user_id', $userId)
+                    ->whereNotIn('user_id', Subscription::pluck('user_id'))
+                    ->pluck('user_id');
+            } else {
+                $usersIds = User::where('role', 'user')
                     ->whereBetween('created_at', [$startDate, $endDate])
-                    ->count();
-
-                $stats[] = [
-                    'user_id' => $userId,
-                    'plan_id' => 'free',
-                    'transcription_count' => $transcriptionCount,
-                    'translation_count' => $translationCount,
-                ];
+                    ->whereIn('user_id', Subscription::where('plan_id', $plan['plan_id'])->pluck('user_id'))
+                    ->pluck('user_id');
             }
 
+            $planTotalUsers = count($usersIds);
 
+            $transcriptionCount = Transcription::whereIn('user_id', $usersIds)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->count();
 
-          } else {
-            $plan['plan_name'] = Plan::where('plan_id', $plan['plan_id'])->value('plan_name');
-          }
+            $transcriptionIds = Transcription::whereIn('user_id', $usersIds)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->pluck('transcription_id');
+
+            $translationCount = Translation::whereIn('transcription_id', $transcriptionIds)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->count();
+
+            $stats[] = [
+                'plan' => $plan['plan_name'],
+                'total_users' => $planTotalUsers,
+                'transcription_count' => $transcriptionCount,
+                'translation_count' => $translationCount,
+            ];
         }
 
-
-
-
+        // Calculate overall total users for the period (not per plan)
+        $overallTotalUsers = User::where('role', 'user')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->count();
 
         return response()->json([
-            'total_users' => $totalUsers,
-            'AvgEngagement' => $AvgEng,
+            'total_users' => $overallTotalUsers,
+            'stats' => $stats,
         ]);
 
         
     }
+
+
+
+    public function financialreport(financialreportRequest $request) {
+
+        $range = $request->input('range', 90);
+        $paymentStatus = $request->input('payment_status', 'all');
+
+        $allowedPaymentStatuses = ['all', 'pending', 'approved', 'declined'];
+        $paymentStatus = in_array($paymentStatus, $allowedPaymentStatuses) ? $paymentStatus : 'all';
+
+        $allowedRanges = [7, 15, 30, 60, 90];
+        $range = in_array($range, $allowedRanges) ? $range : 90;
+
+        $startDate = Carbon::now()->subDays($range)->startOfDay();
+        $endDate = Carbon::now()->endOfDay();
+
+        $users = User::where('role', 'user')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->pluck('user_id');
+
+        $totalUsers = $users->count();
+
+        $payments = Payment::whereBetween('created_at', [$startDate, $endDate])->get();
+
+        // Filter payments by status if needed
+        if ($paymentStatus !== 'all') {
+            $payments = $payments->where('payment_status', $paymentStatus);
+        }
+
+        $totalPayments = $payments->count();
+        $totalAmount = $payments->where('payment_status', 'approved')->sum('payment_amount');
+
+        $paymentsData = [];
+        foreach ($payments as $payment) {
+            $subscription = Subscription::where('user_id', $payment->user_id)
+                ->where('plan_id', $payment->plan_id)
+                ->orderByDesc('start_date')
+                ->first();
+
+            if ($subscription) {
+                $startDateVal = $subscription->start_date;
+                $endDateVal = $subscription->end_date;
+                $planName = Plan::where('plan_id', $subscription->plan_id)->value('plan_name') ?? 'N/A';
+            } else {
+                $startDateVal = 'N/A';
+                $endDateVal = 'N/A';
+                $planName = 'N/A';
+            }
+
+            $paymentsData[] = [
+                'user_id' => $payment->user_id,
+                'user_name' => $payment->first_name . ' ' . $payment->last_name,
+                'payment_id' => $payment->payment_id,
+                'payment_amount' => $payment->payment_amount . ' EGP',
+                'payment_date' => $payment->created_at->format('Y-m-d'),
+                'payment_status' => $payment->payment_status,
+                'plan_name' => $planName,
+                'start_date' => $startDateVal,
+                'end_date' => $endDateVal,
+            ];
+        }
+
+        return response()->json([
+            'total_users' => $totalUsers,
+            'total_payments' => $totalPayments,
+            'total_amount' => $totalAmount . 'EGP',
+            'payments_data' => $paymentsData
+        ]);
+    }
+
 
 
 

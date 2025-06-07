@@ -106,16 +106,16 @@
 
 
     Route::controller(AdminController::class)
-    ->middleware(AdminAccessMiddleware::class)
     ->group(function () {
-        Route::get('user-management/{user_id}', 'UserManagement');
+        Route::get('user-management/{user_id}', 'UserManagement')    ->middleware(AdminAccessMiddleware::class);
     });
 
     Route::controller(ManagerController::class)
-    //->middleware(ManagerAccessMiddleware::class)
+    ->middleware(TokenAuthMiddleware::class)
     ->group(function () {
-        Route::post('descriptive-repost', 'descriptiverepost');
-        Route::post('explantory-report', 'explantoryreport');
+        Route::post('descriptive-repost', 'descriptiverepost')->middleware(ManagerAccessMiddleware::class);
+        Route::post('explantory-report', 'explantoryreport')->middleware(ManagerAccessMiddleware::class);
+        Route::post('financial-report', 'financialreport')->middleware(ManagerAccessMiddleware::class);
     });
 
 

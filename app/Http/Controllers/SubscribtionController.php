@@ -268,7 +268,7 @@ class SubscribtionController extends Controller
             'status' => 'declined',
             'message' => 'Payment declined by Paymob, try again',
             'status_code' => 400
-             ]);
+             ], 400);
             }
     }
 
