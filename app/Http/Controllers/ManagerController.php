@@ -162,7 +162,57 @@ class ManagerController extends Controller
 
             
         
-        } elseif (is_numeric($plan)) {
+        }elseif ($plan === 'all') {
+                $freeusersIds = User::where('role', 'user')
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->pluck('user_id');
+                    
+                $freetotalUsers = count($freeusersIds);
+
+                $subscribedusersIds = User::where('role', 'user')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->whereIn('user_id', Subscription::pluck('user_id')
+                )->pluck('user_id');
+                
+                $subscribedtotalUsers = count($subscribedusersIds);
+
+            if ($totalUsers > 0) {
+                $TranscriptionRemainingfree = User::whereIn('user_id', $freeusersIds)
+                    ->sum('trial_number_transcription');
+
+                $TranslationRemainingfree = User::whereIn('user_id', $freeusersIds)
+                    ->sum('trial_number_translation');
+
+                $totalTranscriptionUsedfree = (10 * $freetotalUsers) - $TranscriptionRemainingfree;
+                $totalTranslationUsedfree = (10 * $freetotalUsers) - $TranslationRemainingfree;
+
+
+
+                $totalTranscriptionUsedsub = 0;
+                $totalTranslationUsedsub = 0;
+
+                $subscriptions = Subscription::whereIn('user_id', $subscribedusersIds)
+                    ->where('subscription_status', 'active')
+                    ->get();
+
+                foreach ($subscriptions as $subscription) {
+                    $planTranscriptionLimit = Plan::where('plan_id', $subscription->plan_id)->value('plan_transcription_limit');
+                    $planTranslationLimit = Plan::where('plan_id', $subscription->plan_id)->value('plan_translation_limit');
+
+                    $usedTranscription = $planTranscriptionLimit - $subscription->remain_transcription_limit;
+                    $usedTranslation = $planTranslationLimit - $subscription->remain_translation_limit;
+
+                    $totalTranscriptionUsedsub += $usedTranscription;
+                    $totalTranslationUsedsub += $usedTranslation;
+                }
+
+                $AvgEng = floatval(( ($totalTranscriptionUsedfree + $totalTranscriptionUsedsub) + ($totalTranslationUsedfree  + $totalTranslationUsedsub) ) / 2);
+
+            }else {
+                $AvgEng = 0.0;
+            }
+        }
+         elseif (is_numeric($plan)) {
             Log::info("Plan is numeric: $plan");
             if (!Plan::where('plan_id', $plan)->exists()) {
                 return response()->json(['error' => 'Invalid plan'], 400);
@@ -197,6 +247,48 @@ class ManagerController extends Controller
             
 
         } 
+
+
+
+
+        $allPlans = Plan::all(['plan_id', 'plan_name'])->toArray();
+        $allPlans[] = ['plan_id' => 'free', 'plan_name' => 'Free'];
+
+        $stats= [];
+        foreach ($allPlans as $plan) {
+          if( $plan['plan_id'] === 'free' && $plan === 'free') {
+            $usersIds = User::where('role', 'user')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->whereNotIn('user_id', Subscription::pluck('user_id')
+                )->pluck('user_id');
+
+            $totalUsers = count($usersIds);
+
+            foreach ($usersIds as $userId) {
+                $transcriptionCount = Transcription::where('user_id', $userId)
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->count();
+
+                $translationCount = Translation::where('user_id', $userId)
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->count();
+
+                $stats[] = [
+                    'user_id' => $userId,
+                    'plan_id' => 'free',
+                    'transcription_count' => $transcriptionCount,
+                    'translation_count' => $translationCount,
+                ];
+            }
+
+
+
+          } else {
+            $plan['plan_name'] = Plan::where('plan_id', $plan['plan_id'])->value('plan_name');
+          }
+        }
+
+
 
 
 
