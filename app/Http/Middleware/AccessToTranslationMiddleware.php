@@ -47,11 +47,11 @@ class AccessToTranslationMiddleware
             if ($activeSubscription->remain_translation_limit > 0) {
                 return $next($request);
             } else {
-                return response()->json(['error' => 'Translation limit exceeded. Please upgrade.'], 403);
+                return response()->json(['error' => 'Translation limit exceeded. Please upgrade.'], 406);
             }
         } else {
             // Subscription expired
-            return response()->json(['error' => 'Subscription expired. Please renew.'], 403);
+            return response()->json(['error' => 'Subscription expired. Please renew.'], 409);
         }
         
     }

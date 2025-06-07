@@ -29,7 +29,8 @@ class RegisterRequest extends FormRequest
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
             ],
             'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100'
+            'last_name' => 'required|string|max:100',
+            'role' => 'nullable|string|max:255',
         ];
     }
 }

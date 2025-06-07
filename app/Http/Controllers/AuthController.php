@@ -34,6 +34,7 @@ class AuthController extends Controller
             'last_name' => $request->last_name,
             'email' => $request->email,
             'password' => bcrypt($request->password),
+            'role' => $request->role?:"user"
         ]);
 
         $token = $user->createToken($user->email)->plainTextToken;
@@ -62,7 +63,8 @@ class AuthController extends Controller
             'token' => $token,
             'user_id' => $user->user_id,
             'first_name' => $user->first_name,
-            'last_name' => $user->last_name
+            'last_name' => $user->last_name,
+            'role' => $user->role
         ]);
 
 

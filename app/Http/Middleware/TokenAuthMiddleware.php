@@ -6,31 +6,30 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Laravel\Sanctum\PersonalAccessToken;
-
 use Illuminate\Support\Facades\Log;
-
 
 class TokenAuthMiddleware
 {
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
         $token = $request->bearerToken(); // Get token from Authorization header
 
         if (!$token) {
-            abort(401); // Return only 401 without JSON message
             Log::error('Token not found');
+            abort(401);
         }
 
         // Validate the token
         $accessToken = PersonalAccessToken::findToken($token);
 
         if (!$accessToken || !$accessToken->tokenable) {
-            abort(401); // Return only 401 without JSON message
             Log::error('Invalid token');
+            abort(401);
         }
 
         // Authenticate user
         auth()->guard('sanctum')->setUser($accessToken->tokenable);
+        $request->setUserResolver(fn () => $accessToken->tokenable);
 
         return $next($request);
     }

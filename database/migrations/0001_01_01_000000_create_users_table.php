@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('password');
             $table->integer('trial_number_transcription')->default(10);
             $table->integer('trial_number_translation')->default(10);
+            $table->enum('role', ['user', 'admin','manager'])->default('user');
             $table->rememberToken();
             $table->timestamps();
         });
