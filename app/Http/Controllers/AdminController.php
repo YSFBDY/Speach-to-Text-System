@@ -17,7 +17,7 @@ class AdminController extends Controller
     
     public function UserManagement()
     {
-        $users = User::all();
+        $users = User::where('role', 'user')->get();
 
         $usersData = $users->map(function ($user) {
         $transcriptions=0;
@@ -37,7 +37,17 @@ class AdminController extends Controller
             $lastToken = PersonalAccessToken::where('tokenable_id', $user->user_id)
                 ->orderBy('created_at', 'desc')
                 ->first();
-
+            if (!$lastToken) {
+                return [
+                    'user_id' => $user->user_id,
+                    'name' => $user->first_name . ' ' . $user->last_name,
+                    'transcriptions' => $transcriptions,
+                    'traslations' => $traslations,
+                    'created_at' => Carbon::parse($user->created_at)->format('d/m/Y'),
+                    'last_active' => 'N/A',
+                    'status' => 'inactive'
+                ];
+            }
             if ($lastToken->created_at->lt(now()->subDays(30))) {
                 $staus = 'inactive';
             }else{
@@ -46,6 +56,7 @@ class AdminController extends Controller
 
                 return [
                 'user_id' => $user->user_id,
+                'name' => $user->first_name . ' ' . $user->last_name,
                 'transcriptions' => $transcriptions,
                 'traslations' => $traslations,
                 'created_at' => Carbon::parse($user->created_at)->format('d/m/Y'),

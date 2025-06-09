@@ -24,7 +24,7 @@ class descriptiverepostRequest extends FormRequest
         return [
             'user_id' => 'required|integer|exists:users,user_id',
             'range' => 'nullable|integer|in:7,15,30,60,90',
-            'plan' => 'nullable|string|in:free,all,1,2,3'
+            'plan' => 'nullable|integer|in:free,all,1,2,3'
         ];
     }
 }
